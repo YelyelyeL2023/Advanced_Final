@@ -12,7 +12,7 @@ from langchain.memory import ConversationBufferMemory
 
 # Настройки Telegram Bot
 BOT_TOKEN = "7897738368:AAHCYVdHyJCudXQNqzKEuYBM_hXB8vs0GBg"
-TELEGRAM_CHAT_ID = "-4709248843"
+TELEGRAM_CHAT_ID = "1318055116"
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 
 # Логирование
@@ -27,7 +27,7 @@ memory = ConversationBufferMemory()
 
 summary_prompt = PromptTemplate(
     input_variables=["text"],
-    template="Составь краткое резюме следующего текста: {text}. Выдели главные темы, аргументы и тезисы."
+    template="Составь краткое резюме следующего текста: {text}. Выдели главные темы, аргументы и тезисы. Если пользователь запрашивает верни ему тот же текст с памяти хранение"
 )
 
 def run_asyncio_coroutine(coroutine):
@@ -61,7 +61,9 @@ async def summarize_text(text: str) -> str:
 
 async def send_message_to_telegram(text: str):
     """Отправляет сообщение в Telegram-бот."""
-    await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text)
+    max_length = 4096
+    for i in range(0, len(text), max_length):
+        await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text[i:i+max_length])
 
 async def start(update: Update, context: CallbackContext):
     """Обрабатывает команду /start."""
@@ -78,3 +80,35 @@ async def handle_message(update: Update, context: CallbackContext):
     await update.message.reply_text(response)
     await send_message_to_telegram(f"Пользователь отправил текст: {user_input}\nКраткое резюме: {summary}")
     memory.save_context({"input": user_input}, {"output": response})
+
+async def process_streamlit_query(query: str):
+    """Обрабатывает запрос из Streamlit: создает резюме и получает ответ."""
+    summary = await summarize_text(query)
+    response = await get_ollama_response(summary)
+    await send_message_to_telegram(f"Streamlit запрос: {query}\nКраткое резюме: {summary}")
+    return response
+
+
+
+async def run_telegram_bot():
+    """Запускает Telegram-бота в фоновом режиме."""
+    app = Application.builder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    logger.info("Telegram bot запущен!")
+    await app.run_polling()
+
+# Интерфейс Streamlit
+st.title("LLM Telegram Chatbot")
+user_input = st.text_area("Введите большой текст для анализа:")
+
+if st.button("Составить резюме"):
+    if user_input:
+        response = run_asyncio_coroutine(process_streamlit_query(user_input))
+        st.write("### Краткое резюме:")
+        st.write(response)
+    else:
+        st.warning("Введите текст перед отправкой!")
+
+if __name__ == "__main__":
+    threading.Thread(target=lambda: asyncio.run(run_telegram_bot()), daemon=True).start()
