@@ -3,7 +3,7 @@ import httpx
 import logging
 import asyncio
 import threading
-from telegram import Bot
+from telegram import Bot, Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from langchain.chains import LLMChain
 from langchain.llms import Ollama
@@ -58,3 +58,23 @@ async def summarize_text(text: str) -> str:
     summary_chain = LLMChain(llm=llm, prompt=summary_prompt)
     summary = summary_chain.run(text=text).strip()
     return summary
+
+async def send_message_to_telegram(text: str):
+    """Отправляет сообщение в Telegram-бот."""
+    await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text)
+
+async def start(update: Update, context: CallbackContext):
+    """Обрабатывает команду /start."""
+    await update.message.reply_text("Привет! Я бот с Ollama. Отправьте мне текст, и я сделаю его резюме.")
+
+async def handle_message(update: Update, context: CallbackContext):
+    """Обрабатывает входящее сообщение, отправляет его в Ollama и создает резюме."""
+    user_input = update.message.text
+    memory.save_context({"input": user_input}, {})
+    context_text = memory.load_memory_variables({}).get("history", "")
+    full_prompt = f"История: {context_text}\nНовый запрос: {user_input}"
+    summary = await summarize_text(full_prompt)
+    response = await get_ollama_response(summary)
+    await update.message.reply_text(response)
+    await send_message_to_telegram(f"Пользователь отправил текст: {user_input}\nКраткое резюме: {summary}")
+    memory.save_context({"input": user_input}, {"output": response})
