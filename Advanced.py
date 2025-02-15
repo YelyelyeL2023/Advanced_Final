@@ -25,3 +25,17 @@ def run_asyncio_coroutine(coroutine):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         return loop.run_until_complete(coroutine)
+
+async def get_ollama_response(prompt: str) -> str:
+    """Отправляет запрос в Ollama API и возвращает ответ."""
+    try:
+        payload = {"model": "llama2", "prompt": prompt, "stream": False}
+        async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
+            response = await client.post(OLLAMA_API_URL, json=payload)
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("response", "No response received from Ollama.")
+            else:
+                return f"Error: {response.status_code} {response.text}"
+    except Exception as e:
+        return f"Exception occurred: {e}"
