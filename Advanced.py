@@ -16,3 +16,12 @@ logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 bot = Bot(token=BOT_TOKEN)
+
+def run_asyncio_coroutine(coroutine):
+    """Запускает асинхронную функцию в новом цикле событий."""
+    try:
+        return asyncio.run(coroutine)
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(coroutine)
