@@ -11,8 +11,8 @@ from langchain.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory
 
 # Настройки Telegram Bot
-BOT_TOKEN = "7897738368:AAHCYVdHyJCudXQNqzKEuYBM_hXB8vs0GBg"
-TELEGRAM_CHAT_ID = "1318055116"
+BOT_TOKEN = "YOUR_TOKEN"
+TELEGRAM_CHAT_ID = "YOUR_CHAT_ID"
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 
 # Логирование
